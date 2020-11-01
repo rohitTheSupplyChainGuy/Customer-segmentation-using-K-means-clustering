@@ -1,0 +1,152 @@
+---
+title: "Customer Segmentation"
+author: "Rohit Tolawat"
+date: "10/30/2020"
+output: pdf_document
+---
+
+```{r}
+pacman::p_load(caret, data.table, ggplot2,gridExtra,ggpubr,MASS,stats,data.table,factoextra)
+knitr::opts_chunk$set(echo = FALSE, fig.width=12, fig.height=6, fig.path = 'Figs/')
+options(digits = 3)
+```
+
+
+```{r}
+set.seed(20)
+customerData.df <- read.csv("C:/Users/rohit/Desktop/Analytics-Project/Customer-Segmentation-using-K-Means/customerSegmentation.csv")
+customerNames <- customerData.df$Customer.Name
+customerData.df <- customerData.df[,-1]
+customerData.unscaled <- customerData.df
+customerData.scaled <- scale(customerData.df, center = TRUE, scale = TRUE)
+
+profit.scaled <- customerData.scaled[,1]
+sales.scaled <- customerData.scaled[,2]
+
+customerData.dt <- data.table(profit = profit.scaled, sales = sales.scaled)
+str(customerData.dt)
+```
+
+```{r}
+sum(is.na(customerData.dt$Profit))
+sum(is.na(customerData.dt$Sales))
+
+```
+```{r}
+summary(customerData.dt)
+```
+
+
+```{r}
+ggplot(customerData.unscaled, aes(x=customerData.unscaled$Profit,y=customerData.unscaled$Sales))+
+  geom_point()+
+  xlab("Profit in $")+
+  ylab("Sales in $")+
+  geom_vline(xintercept = 0, linetype = "dashed", color = "blue")
+```
+
+```{r}
+#The intention is to minimize the within sum of squared euclidean distance. This is the elbow method.
+fviz_nbclust(customerData.unscaled, FUNcluster = kmeans, method = "wss")+
+  ggtitle("Finding the right K for unscaled features")
+```
+
+```{r}
+customerData.cluster.unscaled <- kmeans(customerData.unscaled, centers = 4,iter.max = 10)
+customerData.cluster.unscaled$centers
+```
+```{r}
+fviz_cluster(customerData.cluster.unscaled, data = customerData.unscaled, geom = c("point"),show.clust.cent = TRUE, main = "Customer clusters with unscaled features")+
+  geom_vline(xintercept = 0, linetype="dashed", color = "black", size=0.5)
+```
+
+```{r}
+plot1 <- ggplot(customerData.unscaled, aes(y=customerData.unscaled$Sales))+
+  geom_boxplot()+
+  ylab("Variation in Sales in $")+
+  ggtitle("High variation in revenues")
+
+plot2 <- ggplot(customerData.unscaled, aes(y=customerData.unscaled$Profit))+
+  geom_boxplot()+
+  ylab("Variation in Profit in $")+
+  ggtitle("~50% of customers are loss-making")
+
+grid.arrange(plot1, plot2, ncol=2)
+```
+```{r}
+plot3 <- ggplot(customerData.dt, aes(y=customerData.dt$sales))+
+  geom_boxplot()+
+  ylab("Standardized sales")+
+  ggtitle("Scaled revenues")
+
+plot4 <- ggplot(customerData.dt, aes(y=customerData.dt$profit))+
+  geom_boxplot()+
+  ylab("Standardized profits")+
+  ggtitle("Scaled customers")
+
+grid.arrange(plot3, plot4, ncol=2)
+```
+
+
+
+```{r}
+ggplot(customerData.dt, aes(x=customerData.dt$profit,y=customerData.dt$sales))+
+  geom_point()+
+  xlab("Profit in $")+
+  ylab("Sales in $")+
+  geom_vline(xintercept = 0, linetype = "dashed", color = "blue", size=0.5)
+```
+
+```{r}
+hist(customerData.unscaled$Profit)
+hist(customerData.dt$profit)
+hist(customerData.unscaled$Sales)
+hist(customerData.dt$sales)
+```
+
+
+
+```{r}
+#The intention is to minimize the within sum of squared euclidean distance. This is the elbow method.
+fviz_nbclust(customerData.dt, FUNcluster = kmeans, method = "wss")+
+  ggtitle("Finding the right K with scaled features")
+```
+
+
+
+```{r}
+customerData.cluster <- kmeans(customerData.dt, centers = 5,iter.max = 10)
+customerData.cluster$centers
+```
+
+
+
+
+```{r}
+fviz_cluster(customerData.cluster, data = customerData.dt, geom = c("point"),show.clust.cent = TRUE, main="Customer clusters after scaling features")+
+  geom_vline(xintercept = 0, linetype="dashed", color = "black")+
+  xlab("Profit in $")+
+  ylab("Sales in $")
+```
+
+```{r}
+
+clusterSize.dt <- data.frame(number = 1:length(unique(customerData.cluster$cluster)),size = customerData.cluster$size)
+
+ggplot(clusterSize.dt, aes(x=number, y=size))+
+  geom_bar(stat = "identity")+
+  ggtitle("Cluster 2 is where I would begin my improvement initiatives")+
+  xlab("Cluster number")+
+  ylab("Cluster size")
+
+```
+```{r}
+customerData.dt$cluster <- customerData.cluster$cluster
+customerData.dt$customerName <- customerNames
+str(customerData.dt)
+write.csv(customerData.dt, "C:/Users/rohit/Desktop/Analytics-Project/Customer-Segmentation-using-K-Means/outputSegment.csv", row.names = FALSE)
+customerData.cluster$size
+```
+
+
+
